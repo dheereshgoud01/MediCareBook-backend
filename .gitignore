@@ -1,0 +1,24 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Environment & local secrets
+.env
+.env.local
+application-local.properties
+
+# Operating System files
+.DS_Store
+Thumbs.db
