@@ -57,11 +57,10 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- H2 Database for lightweight in-memory testing if needed -->
+        <!-- H2 Database for embedded / cloud zero-config fallback -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <!-- JWT (JSON Web Token) -->
