@@ -35,7 +35,7 @@ public class DoctorController {
     }
 
     @GetMapping("/list")
-    @Operation(summary = "List all doctors (Public directory, cached)")
+    @Operation(summary = "List all doctors (Public directory)")
     public ResponseEntity<List<DoctorProfileResponse>> listDoctors() {
         return ResponseEntity.ok(doctorService.listDoctors());
     }

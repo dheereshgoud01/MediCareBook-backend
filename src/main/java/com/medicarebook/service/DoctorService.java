@@ -80,7 +80,6 @@ public class DoctorService {
         return new DoctorProfileResponse(saved);
     }
 
-    @Cacheable(value = "doctors")
     public List<DoctorProfileResponse> listDoctors() {
         return doctorRepository.findAll().stream()
                 .map(DoctorProfileResponse::new)
