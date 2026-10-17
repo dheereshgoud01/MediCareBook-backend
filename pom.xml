@@ -57,6 +57,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- PostgreSQL Database Driver (Railway, Render Postgres, Supabase, Neon) -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- H2 Database for embedded / cloud zero-config fallback -->
         <dependency>
             <groupId>com.h2database</groupId>

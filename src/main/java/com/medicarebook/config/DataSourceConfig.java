@@ -44,13 +44,48 @@ public class DataSourceConfig {
         }
 
         if (envDbUrl != null && !envDbUrl.isBlank()) {
+            envDbUrl = envDbUrl.trim();
             log.info("Configuring cloud database connection from environment URL: {}", maskUrl(envDbUrl));
             HikariConfig config = new HikariConfig();
-            config.setJdbcUrl(envDbUrl);
             String user = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : System.getenv("MYSQL_USER");
             String pass = System.getenv("DB_PASSWORD") != null ? System.getenv("DB_PASSWORD") : System.getenv("MYSQL_PASSWORD");
-            if (user != null) config.setUsername(user);
-            if (pass != null) config.setPassword(pass);
+
+            if (envDbUrl.startsWith("mysql://") || envDbUrl.startsWith("postgresql://") || envDbUrl.startsWith("postgres://")) {
+                try {
+                    java.net.URI uri = new java.net.URI(envDbUrl);
+                    String scheme = (uri.getScheme().equalsIgnoreCase("postgres") || uri.getScheme().equalsIgnoreCase("postgresql"))
+                            ? "postgresql"
+                            : "mysql";
+                    String host = uri.getHost();
+                    int port = uri.getPort() != -1 ? uri.getPort() : (scheme.equals("postgresql") ? 5432 : 3306);
+                    String path = (uri.getPath() != null && uri.getPath().startsWith("/")) ? uri.getPath().substring(1) : uri.getPath();
+
+                    if (uri.getUserInfo() != null) {
+                        String[] userInfo = uri.getUserInfo().split(":", 2);
+                        if (user == null || user.isBlank()) user = userInfo[0];
+                        if (userInfo.length > 1 && (pass == null || pass.isBlank())) pass = userInfo[1];
+                    }
+
+                    String query = uri.getQuery() != null ? "?" + uri.getQuery() : (scheme.equals("mysql") ? "?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true" : "");
+                    envDbUrl = String.format("jdbc:%s://%s:%d/%s%s", scheme, host, port, path, query);
+                    if (scheme.equals("postgresql")) {
+                        config.setDriverClassName("org.postgresql.Driver");
+                    } else {
+                        config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+                    }
+                } catch (Exception parseEx) {
+                    log.warn("Could not parse cloud URI, prepending jdbc:: {}", parseEx.getMessage());
+                    if (!envDbUrl.startsWith("jdbc:")) {
+                        envDbUrl = "jdbc:" + envDbUrl;
+                    }
+                }
+            } else if (!envDbUrl.startsWith("jdbc:")) {
+                envDbUrl = "jdbc:mysql://" + envDbUrl;
+            }
+
+            config.setJdbcUrl(envDbUrl);
+            if (user != null && !user.isBlank()) config.setUsername(user);
+            if (pass != null && !pass.isBlank()) config.setPassword(pass);
             return new HikariDataSource(config);
         }
 
