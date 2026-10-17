@@ -59,11 +59,14 @@ public class DataSourceConfig {
                     String host = uri.getHost();
                     int port = uri.getPort() != -1 ? uri.getPort() : (scheme.equals("postgresql") ? 5432 : 3306);
                     String path = (uri.getPath() != null && uri.getPath().startsWith("/")) ? uri.getPath().substring(1) : uri.getPath();
+                    if (path == null || path.isBlank() || path.equalsIgnoreCase("sys")) {
+                        path = "test";
+                    }
 
-                    if (uri.getUserInfo() != null) {
+                    if (uri.getUserInfo() != null && !uri.getUserInfo().isBlank()) {
                         String[] userInfo = uri.getUserInfo().split(":", 2);
-                        if (user == null || user.isBlank()) user = userInfo[0];
-                        if (userInfo.length > 1 && (pass == null || pass.isBlank())) pass = userInfo[1];
+                        if (userInfo[0] != null && !userInfo[0].isBlank()) user = userInfo[0];
+                        if (userInfo.length > 1 && !userInfo[1].isBlank()) pass = userInfo[1];
                     }
 
                     String query = uri.getQuery() != null ? "?" + uri.getQuery() : (scheme.equals("mysql") ? "?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true" : "");
