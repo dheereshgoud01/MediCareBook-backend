@@ -50,37 +50,39 @@ public class DataSourceConfig {
             String user = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : System.getenv("MYSQL_USER");
             String pass = System.getenv("DB_PASSWORD") != null ? System.getenv("DB_PASSWORD") : System.getenv("MYSQL_PASSWORD");
 
-            if (envDbUrl.startsWith("mysql://") || envDbUrl.startsWith("postgresql://") || envDbUrl.startsWith("postgres://")) {
-                try {
-                    java.net.URI uri = new java.net.URI(envDbUrl);
-                    String scheme = (uri.getScheme().equalsIgnoreCase("postgres") || uri.getScheme().equalsIgnoreCase("postgresql"))
-                            ? "postgresql"
-                            : "mysql";
-                    String host = uri.getHost();
-                    int port = uri.getPort() != -1 ? uri.getPort() : (scheme.equals("postgresql") ? 5432 : 3306);
-                    String path = (uri.getPath() != null && uri.getPath().startsWith("/")) ? uri.getPath().substring(1) : uri.getPath();
-                    if (path == null || path.isBlank() || path.equalsIgnoreCase("sys")) {
-                        path = "test";
-                    }
+            // Normalize any duplicate slashes (e.g. mysql://// -> mysql://)
+            envDbUrl = envDbUrl.replaceAll("^(jdbc:)?(mysql|postgresql|postgres):/+", "$2://");
 
-                    if (uri.getUserInfo() != null && !uri.getUserInfo().isBlank()) {
-                        String[] userInfo = uri.getUserInfo().split(":", 2);
-                        if (userInfo[0] != null && !userInfo[0].isBlank()) user = userInfo[0];
-                        if (userInfo.length > 1 && !userInfo[1].isBlank()) pass = userInfo[1];
-                    }
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("^(mysql|postgresql|postgres)://(?:([^:@]+)(?::([^@]+))?@)?([^:/?#]+)(?::(\\d+))?(?:/([^?#]*))?(?:\\?(.*))?$");
+            java.util.regex.Matcher matcher = pattern.matcher(envDbUrl);
 
-                    String query = uri.getQuery() != null ? "?" + uri.getQuery() : (scheme.equals("mysql") ? "?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true" : "");
-                    envDbUrl = String.format("jdbc:%s://%s:%d/%s%s", scheme, host, port, path, query);
-                    if (scheme.equals("postgresql")) {
-                        config.setDriverClassName("org.postgresql.Driver");
-                    } else {
-                        config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-                    }
-                } catch (Exception parseEx) {
-                    log.warn("Could not parse cloud URI, prepending jdbc:: {}", parseEx.getMessage());
-                    if (!envDbUrl.startsWith("jdbc:")) {
-                        envDbUrl = "jdbc:" + envDbUrl;
-                    }
+            if (matcher.matches()) {
+                String rawScheme = matcher.group(1);
+                String scheme = (rawScheme.equalsIgnoreCase("postgres") || rawScheme.equalsIgnoreCase("postgresql")) ? "postgresql" : "mysql";
+                String parsedUser = matcher.group(2);
+                String parsedPass = matcher.group(3);
+                String host = matcher.group(4);
+                String portStr = matcher.group(5);
+                int port = portStr != null ? Integer.parseInt(portStr) : (scheme.equals("postgresql") ? 5432 : 3306);
+                String path = matcher.group(6);
+                String rawQuery = matcher.group(7);
+
+                if (parsedUser != null && !parsedUser.isBlank()) user = parsedUser.trim();
+                if (parsedPass != null && !parsedPass.isBlank()) pass = parsedPass.trim();
+
+                if (path == null || path.isBlank() || path.equalsIgnoreCase("sys")) {
+                    path = "test";
+                }
+
+                String query = (rawQuery != null && !rawQuery.isBlank())
+                        ? "?" + rawQuery
+                        : (scheme.equals("mysql") ? "?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true" : "");
+
+                envDbUrl = String.format("jdbc:%s://%s:%d/%s%s", scheme, host, port, path, query);
+                if (scheme.equals("postgresql")) {
+                    config.setDriverClassName("org.postgresql.Driver");
+                } else {
+                    config.setDriverClassName("com.mysql.cj.jdbc.Driver");
                 }
             } else if (!envDbUrl.startsWith("jdbc:")) {
                 envDbUrl = "jdbc:mysql://" + envDbUrl;
