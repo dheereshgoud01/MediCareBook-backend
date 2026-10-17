@@ -86,7 +86,19 @@ public class DataSourceConfig {
             config.setJdbcUrl(envDbUrl);
             if (user != null && !user.isBlank()) config.setUsername(user);
             if (pass != null && !pass.isBlank()) config.setPassword(pass);
-            return new HikariDataSource(config);
+            config.setInitializationFailTimeout(4000);
+            config.setConnectionTimeout(4000);
+
+            try {
+                HikariDataSource ds = new HikariDataSource(config);
+                try (var conn = ds.getConnection()) {
+                    log.info("Successfully connected to cloud database at {}!", maskUrl(envDbUrl));
+                    return ds;
+                }
+            } catch (Exception e) {
+                log.error("Failed to connect to cloud database at {}. Falling back to embedded database: {}", maskUrl(envDbUrl), e.getMessage());
+                return createEmbeddedDataSource();
+            }
         }
 
         // 2. If explicit external DB_HOST is defined (not localhost), connect to it
@@ -98,7 +110,18 @@ public class DataSourceConfig {
             config.setJdbcUrl(jdbcUrl);
             config.setUsername(dbUser != null ? dbUser : "root");
             config.setPassword(dbPassword != null ? dbPassword : "root");
-            return new HikariDataSource(config);
+            config.setInitializationFailTimeout(4000);
+            config.setConnectionTimeout(4000);
+            try {
+                HikariDataSource ds = new HikariDataSource(config);
+                try (var conn = ds.getConnection()) {
+                    log.info("Connected to external MySQL database on {}:{}", dbHost, dbPort);
+                    return ds;
+                }
+            } catch (Exception e) {
+                log.error("Failed to connect to external MySQL on {}:{}. Falling back to embedded database: {}", dbHost, dbPort, e.getMessage());
+                return createEmbeddedDataSource();
+            }
         }
 
         // 3. Test local MySQL (used for local PC development)
@@ -124,7 +147,10 @@ public class DataSourceConfig {
         }
 
         // 4. Default for Render and Cloud Containers with zero external database setup:
-        // Embedded H2 MySQL-compatible mode ensures the app starts immediately on Render!
+        return createEmbeddedDataSource();
+    }
+
+    private DataSource createEmbeddedDataSource() {
         log.info("Initializing embedded MySQL-compatible database for cloud deployment (zero external dependency).");
         HikariConfig h2Config = new HikariConfig();
         h2Config.setDriverClassName("org.h2.Driver");
