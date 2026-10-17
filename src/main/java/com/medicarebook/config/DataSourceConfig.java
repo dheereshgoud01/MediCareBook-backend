@@ -71,7 +71,7 @@ public class DataSourceConfig {
                 if (parsedPass != null && !parsedPass.isBlank()) pass = parsedPass.trim();
 
                 if (path == null || path.isBlank() || path.equalsIgnoreCase("sys")) {
-                    path = "test";
+                    path = scheme.equals("postgresql") ? "neondb" : "test";
                 }
 
                 String query = (rawQuery != null && !rawQuery.isBlank())
